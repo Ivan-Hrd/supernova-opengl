@@ -1,0 +1,90 @@
+#version 450
+uniform sampler2D texture_sampler;
+uniform float uTime;
+layout(location=0) out vec4 output_color;
+
+uint lowbias32(uint x)
+{
+    x ^= x >> 16;
+    x *= 0x7feb352dU;
+    x ^= x >> 15;
+    x *= 0x846ca68bU;
+    x ^= x >> 16;
+    return x;
+}
+
+float hash(vec2 p) {
+
+    uint pnew = floatBitsToUint(p.x) ^ (floatBitsToUint(p.y));
+    pnew = lowbias32(pnew);
+    return float(pnew) / float(0xffffffffU);
+}
+
+vec3 stars(vec2 uv, float cellSize, float time) {
+    const float aspect = 1920.0 / 1080.0;
+
+    vec2 cell  = floor(uv / cellSize);
+    vec2 local = uv / cellSize - floor(uv / cellSize); // get frag position in the cell
+
+    // one cell = 1 star of each kind
+    vec2 starPos = vec2(hash(cell+1.3), hash(cell + 17.37));
+
+    vec2 d = (local - starPos) * vec2(aspect, 1.0);
+    float dist = length(d);
+
+    float bri     = hash(cell + 3.7);
+    float speed   = hash(cell + 9.1) * 2.5 + 0.5;
+    float phase   = hash(cell + 53.0) * 6.28;
+    float twinkle = 0.7 + 0.3 * sin(time * speed + phase);
+
+    float radius = 0.008 + bri * 0.008;
+
+    float core = smoothstep(radius, radius * 0.2, dist);
+    float halo = smoothstep(radius * 3.0, 0.0, dist) * 0.3;
+
+    float intensity = pow(bri, 1.5);
+    float glow = (core + halo) * intensity * twinkle * 3.0;
+
+    vec3 color = vec3(1., 1., 1.);
+
+    return color * glow;
+}
+
+vec3 nova(vec2 uv, float time) {
+    const float aspect = 1920.0 / 1080.0;
+
+    vec2 local = uv;
+    vec2 novaPos = vec2(0.5, 0.5);
+    vec2 d = (local - novaPos) * vec2(aspect, 1.0);
+    float dist = length(d);
+
+    float novaRadius = 0.1;
+    // float intensity = smoothstep(novaRadius,0.0,dist);
+    float edgeWidth  = 0.03;
+    float intensity = clamp((novaRadius - dist) / edgeWidth, 0.0, 1.0);
+    float speed = float(lowbias32(floatBitsToUint(9.1)))  / float(0xffffffffU) * 2.5 + 0.5;
+    float phase = float(lowbias32(floatBitsToUint(53.1))) / float(0xffffffffU) * 6.28;
+    float twinkle = 0.7 + 0.3 * sin(time * speed + phase);
+
+    float halo = smoothstep(novaRadius * 3.0, 0.0, dist)*0.6;
+
+
+    vec3 color = vec3(.8,.8,1.);
+
+    return ( color * (intensity+halo*twinkle));
+}
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / vec2(1920.0, 1080.0);
+
+    vec4 texel    = texture(texture_sampler, uv);
+    vec3 starGlow = vec3(0.0);
+    starGlow += stars(uv, 0.08, uTime);
+    starGlow += stars(uv, 0.12, uTime);
+    starGlow += stars(uv, 0.25, uTime);
+
+    vec3 novaGlow = vec3(0.0);
+    novaGlow += nova(uv, uTime);
+
+    output_color = vec4(texel.rgb + starGlow + novaGlow, 1.0);
+}

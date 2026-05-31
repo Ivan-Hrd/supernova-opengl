@@ -3,6 +3,10 @@ uniform sampler2D texture_sampler;
 uniform float uTime;
 layout(location=0) out vec4 output_color;
 
+const vec2 windowSize = vec2(1920., 1080.);
+const float aspect = windowSize.x/windowSize.y;
+const float maxRadius = 0.5;
+
 uint lowbias32(uint x)
 {
     x ^= x >> 16;
@@ -21,7 +25,6 @@ float hash(vec2 p) {
 }
 
 vec3 stars(vec2 uv, float cellSize, float time) {
-    const float aspect = 1920.0 / 1080.0;
 
     vec2 cell  = floor(uv / cellSize);
     vec2 local = uv / cellSize - floor(uv / cellSize); // get frag position in the cell
@@ -51,7 +54,6 @@ vec3 stars(vec2 uv, float cellSize, float time) {
 }
 
 vec3 nova(vec2 uv, float time) {
-    const float aspect = 1920.0 / 1080.0;
 
     vec2 local = uv;
     vec2 novaPos = vec2(0.5, 0.5);
@@ -66,7 +68,7 @@ vec3 nova(vec2 uv, float time) {
     float phase = float(lowbias32(floatBitsToUint(53.1))) / float(0xffffffffU) * 6.28;
     float twinkle = 0.7 + 0.3 * sin(time * speed + phase);
 
-    float halo = smoothstep(novaRadius * 3.0, 0.0, dist)*0.6;
+    float halo = smoothstep(novaRadius * 3.0, 0.0, dist)*0.9;
 
 
     vec3 color = vec3(.8,.8,1.);
@@ -74,10 +76,33 @@ vec3 nova(vec2 uv, float time) {
     return ( color * (intensity+halo*twinkle));
 }
 
-void main() {
-    vec2 uv = gl_FragCoord.xy / vec2(1920.0, 1080.0);
+float getOffsetStrength(float t, vec2 dir) {
+  float d = length(dir*vec2(aspect, 1.0)) - t * maxRadius; // SDF of circle
 
-    vec4 texel    = texture(texture_sampler, uv);
+  d *= 1. - smoothstep(0., 0.05, abs(d)); // Mask the ripple
+
+  d *= smoothstep(0., 0.05, t); // Smooth intro
+  d *= 1. - smoothstep(0.5, 1., t); // Smooth outro
+  return d*2;
+}
+
+
+void main() {
+    vec2 uv = gl_FragCoord.xy / windowSize;
+
+    vec2 dir = uv - vec2(0.5,0.5);
+    float tOffset = 0.05 * sin((5+uTime) * 3.14);
+    float rD = getOffsetStrength(uTime + tOffset, dir);
+    float gD = getOffsetStrength(uTime, dir);
+    float bD = getOffsetStrength(uTime - tOffset, dir);
+
+    dir = normalize(dir);
+
+    vec4 texel;
+    texel.r = texture(texture_sampler, uv + dir * rD).r;
+    texel.g = texture(texture_sampler, uv + dir * gD).g;
+    texel.b = texture(texture_sampler, uv + dir * bD).b;
+
     vec3 starGlow = vec3(0.0);
     starGlow += stars(uv, 0.08, uTime);
     starGlow += stars(uv, 0.12, uTime);

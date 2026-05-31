@@ -2,7 +2,6 @@
 uniform sampler2D texture_sampler;
 uniform float uTime;
 uniform int uClicked;
-uniform float uClickTime;
 
 layout(location=0) out vec4 output_color;
 
@@ -92,19 +91,18 @@ float getOffsetStrength(float t, vec2 dir) {
 
 void main() {
     vec2 uv = gl_FragCoord.xy / windowSize;
-    vec2 dir = uv - vec2(0.5,0.5);
-
-    float tOffset = 0.05 * sin(uTime - uClickTime * 3.14);
-    float rD = getOffsetStrength(uTime - uClickTime + tOffset, dir);
-    float gD = getOffsetStrength(uTime - uClickTime, dir);
-    float bD = getOffsetStrength(uTime - uClickTime - tOffset, dir);
+    dir = uv - vec2(0.5,0.5);
+    float tOffset = 0.05 * sin((5+uTime) * 3.14);
+    float rD = getOffsetStrength(uTime + tOffset, dir);
+    float gD = getOffsetStrength(uTime, dir);
+    float bD = getOffsetStrength(uTime - tOffset, dir);
 
     dir = normalize(dir);
 
     vec4 texel;
-    texel.r = texture(texture_sampler, uv + dir * rD * uClicked).r;
-    texel.g = texture(texture_sampler, uv + dir * gD * uClicked).g;
-    texel.b = texture(texture_sampler, uv + dir * bD * uClicked).b;
+    texel.r = texture(texture_sampler, uv + dir * rD*uClicked).r;
+    texel.g = texture(texture_sampler, uv + dir * gD*uClicked).g;
+    texel.b = texture(texture_sampler, uv + dir * bD*uClicked).b;
 
     vec3 starGlow = vec3(0.0);
     starGlow += stars(uv, 0.08, uTime);

@@ -8,6 +8,8 @@ add_executable(main
         main.cpp
         image.cpp
         image_io.cpp
+        vertex.shd
+        fragment.shd
 )
 
 target_link_libraries(main GL GLEW glut pthread)

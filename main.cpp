@@ -30,19 +30,34 @@
 GLuint teapot_vao_id;
 GLuint quad_vao_id;
 GLuint program_id;
+GLint clickedLocation;
+GLint clickedTimeLocation;
+
+float clickTime = 0.0f;
+bool clicked = false;
+
+void mouseCallback(int button, int state, int x, int y)
+{
+  if (button == GLUT_LEFT_BUTTON && state == GLUT_DOWN && clickTime == 0.0)
+  {
+    clickTime = glutGet(GLUT_ELAPSED_TIME) / 1000.0f;
+    clicked = true;
+    glutPostRedisplay();
+  }
+}
 
 void window_resize(int width, int height) {
   //std::cout << "glViewport(0,0,"<< width << "," << height << ");TEST_OPENGL_ERROR();" << std::endl;
   glViewport(0,0,width,height);TEST_OPENGL_ERROR();
 }
 
-#if defined(SAVE_RENDER)
-bool saved = false;
-#endif
-
 void display() {
   GLint time_location = glGetUniformLocation(program_id, "uTime");
   glUniform1f(time_location, glutGet(GLUT_ELAPSED_TIME) / 1000.0f);
+  clickedLocation = glGetUniformLocation(program_id, "uClicked");
+  glUniform1i(clickedLocation, clicked ? 1 : 0);
+  clickedTimeLocation = glGetUniformLocation(program_id, "uClickTime");
+  glUniform1f(clickedTimeLocation, clickTime);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);TEST_OPENGL_ERROR();
   glDisable(GL_DEPTH_TEST);
@@ -82,6 +97,7 @@ void init_glut(int &argc, char *argv[]) {
   glutCreateWindow("Shader Programming");
   glutDisplayFunc(display);
   glutReshapeFunc(window_resize);
+  glutMouseFunc(mouseCallback);
 }
 
 bool init_glew() {

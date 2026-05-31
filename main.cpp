@@ -58,6 +58,7 @@ void display() {
   glUniform1i(clickedLocation, clicked ? 1 : 0);
   clickedTimeLocation = glGetUniformLocation(program_id, "uClickTime");
   glUniform1f(clickedTimeLocation, clickTime);
+  glUniform2f(glGetUniformLocation(program_id, "windowSize"), 1920.0f, 1080.0f);
 
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);TEST_OPENGL_ERROR();
   glDisable(GL_DEPTH_TEST);

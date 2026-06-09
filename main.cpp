@@ -206,17 +206,17 @@ void init_object_vbo() {
 void init_textures() {
   tifo::rgb24_image *texture = tifo::load_image("texture.tga");
   tifo::rgb24_image *lighting = tifo::load_image("lighting.tga");
-  tifo::rgb24_image *normalmap = tifo::load_image("normalmap.tga");
+  tifo::rgb24_image *noise = tifo::load_image("noise.tga");
   GLuint texture_id;
   GLuint lighting_id;
-  GLuint normalmap_id;
+  GLuint noise_id;
   GLint tex_location;
   GLint light_location;
-  GLint normalmap_location;
+  GLint noise_location;
 
   std::cout << "texture " << texture->sx << " ," <<  texture->sy << "\n";
   std::cout << "light " << lighting->sx << " ," <<  lighting->sy << "\n";
-  std::cout << "normalmap " << normalmap->sx << " ," <<  normalmap->sy << std::endl;
+  std::cout << "noise " << noise->sx << " ," <<  noise->sy << std::endl;
 
   GLint texture_units, combined_texture_units;
   glGetIntegerv(GL_MAX_TEXTURE_IMAGE_UNITS, &texture_units);
@@ -250,13 +250,13 @@ void init_textures() {
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);TEST_OPENGL_ERROR();
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);TEST_OPENGL_ERROR();
 
-  glGenTextures(1, &normalmap_id);TEST_OPENGL_ERROR();
+  glGenTextures(1, &noise_id);TEST_OPENGL_ERROR();
   glActiveTexture(GL_TEXTURE2);TEST_OPENGL_ERROR();
-  glBindTexture(GL_TEXTURE_2D,normalmap_id);TEST_OPENGL_ERROR();
-  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, normalmap->sx, normalmap->sy, 0, GL_RGB, GL_UNSIGNED_BYTE, normalmap->pixels);TEST_OPENGL_ERROR();
-  normalmap_location = glGetUniformLocation(program_id, "normalmap_sampler");TEST_OPENGL_ERROR();
-  std::cout << "normalmap_location " << normalmap_location << std::endl;
-  glUniform1i(normalmap_location,2);TEST_OPENGL_ERROR();
+  glBindTexture(GL_TEXTURE_2D,noise_id);TEST_OPENGL_ERROR();
+  glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, noise->sx, noise->sy, 0, GL_RGB, GL_UNSIGNED_BYTE, noise->pixels);TEST_OPENGL_ERROR();
+  noise_location = glGetUniformLocation(program_id, "noise_sampler");TEST_OPENGL_ERROR();
+  std::cout << "noise_sampler " << noise_location << std::endl;
+  glUniform1i(noise_location,2);TEST_OPENGL_ERROR();
 
 
   glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);TEST_OPENGL_ERROR();
@@ -266,7 +266,7 @@ void init_textures() {
 
   delete texture;
   delete lighting;
-  delete normalmap;
+  delete noise;
 }
 
 std::string load(const std::string &filename) {

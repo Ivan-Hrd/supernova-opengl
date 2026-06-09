@@ -74,8 +74,8 @@ vec3 computeColor( float density, float radius )
 {
     vec3 result = mix( vec3(0.6, 0.3, 0.9), vec3(0.02, 0.0, 0.08), density );
 
-    vec3 colCenter = 8.*vec3(0.7, 0.4, 1.0);
-    vec3 colEdge = 1.2*vec3(0.5, 0.1, 1.0);
+    vec3 colCenter = 3.*vec3(0.5, 0.6, 0.8);
+    vec3 colEdge = 1.0*vec3(0.4, 0.2, 0.9);
     result *= mix( colCenter, colEdge, min( (radius+.05)/.9, 1.15 ) );
 
     return result;
@@ -84,7 +84,7 @@ vec3 computeColor( float density, float radius )
 bool RaySphereIntersect(vec3 org, vec3 dir, out float near, out float far)
 {
 	float b = dot(dir, org);
-	float c = dot(org, org) - 8.;
+	float c = dot(org, org) - 18.;
 	float delta = b*b - c;
 	if( delta < 0.0)
 		return false;
@@ -163,7 +163,7 @@ vec3 nova(vec2 uv, float time) {
     float halo = smoothstep(novaRadius * 3.0, 0.0, dist)*0.9;
 
 
-    vec3 color = vec3(.8,.8,1.);
+    vec3 color = vec3(0.7, 0.75, 0.85);
 
     return ( color * (intensity+halo*twinkle));
 }
@@ -228,15 +228,15 @@ void main() {
 
             vec3 ldst = vec3(0.0)-pos;
             float lDist = max(length(ldst), 0.001);
-            vec3 lightColor = vec3(0.5, 0.1, 1.0);
-            nebulaSum.rgb += (lightColor/(lDist*lDist)/22.);
+            vec3 lightColor = vec3(0.3, 0.4, 0.6);
+            nebulaSum.rgb += (lightColor/(lDist*lDist)/40.);
 
             if (d<h){
                 ld = h-d;
                 w = (1. - td) * ld;
                 td += w + 1./200.;
                 vec4 col = vec4(computeColor(td, lDist), td);
-                col.a *= 0.185;
+                col.a *= 0.15;
                 col.rgb *= col.a;
                 nebulaSum = nebulaSum + col*(1. - nebulaSum.a);
             }

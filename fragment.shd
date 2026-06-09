@@ -267,7 +267,7 @@ vec3 nova_render()
 	float ld = 0.;
     float td = 0.;
     float w = 0.;
-	float d = 1.
+	float d = 1.;
     float t = 0.;
 	const float h = 0.1;
 	vec4 sum = vec4(0.0);

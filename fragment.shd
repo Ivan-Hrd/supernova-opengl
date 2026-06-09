@@ -169,9 +169,9 @@ vec3 nova(vec2 uv, float time) {
 }
 
 float getOffsetStrength(float t, vec2 dir) {
-  float d = length(dir*vec2(aspect, 1.0)) - t * maxRadius; // SDF of circle
+  float d = length(dir*vec2(aspect, 1.0)) - t * maxRadius; // SDF cercle
 
-  d *= 1. - smoothstep(0., 0.05, abs(d)); // Mask the ripple
+  d *= 1. - smoothstep(0., 0.1, abs(d)); // annule si trop loin de la frontière
 
   d *= smoothstep(0., 0.05, t); // Smooth intro
   d *= 1. - smoothstep(0.5, 1., t); // Smooth outro
@@ -229,7 +229,7 @@ void main() {
             vec3 ldst = vec3(0.0)-pos;
             float lDist = max(length(ldst), 0.001);
             vec3 lightColor = vec3(0.5, 0.1, 1.0);
-            nebulaSum.rgb += (lightColor/(lDist*lDist)/22.);            if (d<h)
+            nebulaSum.rgb += (lightColor/(lDist*lDist)/22.);
 
             if (d<h){
                 ld = h-d;
@@ -251,5 +251,6 @@ void main() {
     */
 
     output_color = vec4(texel.rgb + starGlow + novaGlow, 1.0);
-    output_color += nebulaSum;
+    if (uClicked != 0 && uTime - uClickTime > 1.5)
+        output_color += nebulaSum;
 }

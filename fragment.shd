@@ -1,4 +1,4 @@
-#version 450
+#version 410
 uniform sampler2D texture_sampler;
 uniform sampler2D noise_sampler;
 uniform float uTime;
@@ -178,6 +178,150 @@ float getOffsetStrength(float t, vec2 dir) {
   return d*2;
 }
 
+/*
+    NOVA BEGIN
+*/
+
+#define iTime uTime
+#define iResolution vec3(windowSize, 1.0)
+
+float hash13(vec3 p3) {
+    p3 = fract(p3 * 0.1031);
+    p3 += dot(p3, p3.zyx + 31.32);
+    return fract((p3.x + p3.y) * p3.z);
+}
+
+float nova_noise( in vec3 x )
+{
+    vec3 p = floor(x);
+    vec3 f = fract(x);
+	f = f*f*(3.0-2.0*f);
+    float n = mix(
+        mix(mix(hash13(p+vec3(0,0,0)), hash13(p+vec3(1,0,0)), f.x),
+            mix(hash13(p+vec3(0,1,0)), hash13(p+vec3(1,1,0)), f.x), f.y),
+        mix(mix(hash13(p+vec3(0,0,1)), hash13(p+vec3(1,0,1)), f.x),
+            mix(hash13(p+vec3(0,1,1)), hash13(p+vec3(1,1,1)), f.x), f.y), f.z);
+    return 1. - 0.82*n;
+}
+
+float nova_fbm( vec3 p )
+{
+   return nova_noise(p*.06125)*.5 + nova_noise(p*.125)*.25 + nova_noise(p*.25)*.125 + nova_noise(p*.4)*.2;
+}
+
+float nova_Sphere( vec3 p, float r )
+{
+    return length(p)-r;
+}
+
+const float tExpand = 2.5; // seconds to full size
+const float tFly = 3.0; // camera fly-through
+const float flyDist = 10.0;
+
+const float nova_nudge = 4.;
+const float nova_normalizer = 0.242535625;
+float nova_SpiralNoiseC(vec3 p)
+{
+    float n = 1. + clamp((uTime - uClickTime) * 0.1, 0., 1.);
+    float iter = 2.0;
+    for (int i = 0; i < 8; i++)
+    {
+        n += -abs(sin(p.y*iter) + cos(p.x*iter)) / iter;
+        // rotate XY, XZ
+        p.xy += vec2(p.y, -p.x) * nova_nudge;
+        p.xy *= nova_normalizer;
+        p.xz += vec2(p.z, -p.x) * nova_nudge;
+        p.xz *= nova_normalizer;
+        iter *= 1.733733; // lacunarity
+    }
+    return n;
+}
+
+float nova_VolumetricExplosion(vec3 p)
+{
+    float final = nova_Sphere(p,4.);
+    final += nova_SpiralNoiseC(p.zxy*nova_fbm(p*10.))*2.5;
+
+    return final;
+}
+
+float nova_map(vec3 p)
+{
+	R(p.xz, iTime*0.1);
+
+    float localT = max(uTime - uClickTime, 0.0);
+    float grow = clamp(localT / tExpand, 0.0, 1.0);
+    grow = grow * 0.95 + 0.05; // minimum scale 5%
+    float VolExplosion = nova_VolumetricExplosion(p/grow)*grow;
+
+	return abs(VolExplosion)+0.07; // shell thickness
+}
+
+vec3 nova_render()
+{
+	vec3 rd = normalize(vec3((gl_FragCoord.xy-0.5*iResolution.xy)/iResolution.y, 1.));
+	float localT = max(uTime - uClickTime, 0.0);
+	float dolly = smoothstep(tExpand * 0.4, tExpand + tFly, localT) * flyDist;
+	vec3 ro = vec3(0., 0., -6. + dolly);
+
+	float ld = 0.;
+    float td = 0.;
+    float w = 0.;
+	float d = 1.
+    float t = 0.;
+	const float h = 0.1;
+	vec4 sum = vec4(0.0);
+	float min_dist = 0.0, max_dist = 0.0;
+
+	if(RaySphereIntersect(ro, rd, min_dist, max_dist))
+	{
+		t = min_dist*step(t,min_dist);
+
+		for (int i=0; i<86; i++)
+		{
+			vec3 pos = ro + t*rd;
+			if(td>0.9 || d<0.11*t || t>10. || sum.a > 0.99 || t>max_dist) break;
+
+			float d = nova_map(pos);
+
+			vec3 ldst = vec3(0.0)-pos;
+			float lDist = max(length(ldst), 0.001);
+			vec3 lightColor = vec3(0.7,0.7,0.7);
+			vec3 ldst2 = vec3(0.5, 0.5, 0.0) - pos;
+			float lDist2 = max(length(ldst2), 0.001);
+			vec3 rimColor = vec3(0.3, 0.2, 1.0);
+
+			sum.rgb += (vec3(0.67,0.75,1.00)/(lDist*lDist*15.)/100.); // center star
+			sum.rgb += (lightColor/exp(lDist*lDist*lDist*.08)/30.); // bloom
+			sum.rgb += (rimColor/exp(lDist2*lDist2*lDist2*.12)/40.); // rim light
+
+			if (d < h)
+			{
+				ld = h - d;
+				w = (1. - td) * ld;
+				td += w + 1. / 200.;
+				vec4 col = vec4(computeColor(td,lDist), td);
+				sum += sum.a * vec4(sum.rgb, 0.0) * 0.2 / lDist; // emission
+				col.a *= 0.2;
+				col.rgb *= col.a;
+				sum = sum + col*(1.0 - sum.a); // front-to-back blend
+			}
+
+			td += 1./70.;
+			t += max(d * 0.1 * max(min(length(ldst),length(ro)),0.1), 0.01);
+		}
+
+		sum *= 1. / exp(ld * 0.2) * 0.8; // scattering
+		sum = clamp(sum, 0.0, 1.0);
+		sum.xyz = sum.xyz * sum.xyz * (3.0-2.0 * sum.xyz);
+	}
+
+	return sum.xyz;
+}
+
+/*
+    NOVA END
+*/
 
 void main() {
     vec2 uv = gl_FragCoord.xy / windowSize;
@@ -202,6 +346,14 @@ void main() {
 
     vec3 novaGlow = vec3(0.0);
     novaGlow += nova(uv, uTime);
+
+    float boomT = uTime - uClickTime;
+    if (uClicked != 0 && boomT < tExpand + tFly)
+    {
+        float boom = smoothstep(0.0, 0.4, boomT)
+                   * (1.0 - smoothstep(tExpand + tFly - 0.8, tExpand + tFly, boomT));
+        novaGlow += nova_render() * boom;
+    }
 
     /*
         NEBULA BEGIN
@@ -228,8 +380,12 @@ void main() {
 
             vec3 ldst = vec3(0.0)-pos;
             float lDist = max(length(ldst), 0.001);
-            vec3 lightColor = vec3(0.3, 0.4, 0.6);
-            nebulaSum.rgb += (lightColor/(lDist*lDist)/40.);
+            vec3 lightColor = vec3(0.7, 0.7, 0.7);
+            vec3 ldst2 = vec3(0.5, 0.5, 0.0) - pos;
+            float lDist2 = max(length(ldst2), 0.001);
+            vec3 rimColor = vec3(0.3, 0.2, 1.0);
+            nebulaSum.rgb += (lightColor/(lDist*lDist)/100.);
+            nebulaSum.rgb += (rimColor/exp(lDist2*lDist2*lDist2*.12)/40.);
 
             if (d<h){
                 ld = h-d;
@@ -251,6 +407,14 @@ void main() {
     */
 
     output_color = vec4(texel.rgb + starGlow + novaGlow, 1.0);
-    if (uClicked != 0 && uTime - uClickTime > 1.5)
+
+    if (uClicked != 0) {
+        float flash = smoothstep(tExpand + 0.2, tExpand + 0.7, boomT)
+                    * (1.0 - smoothstep(tExpand + 1.0, tExpand + 4, boomT));
+        flash = pow(flash, 0.35);
+        output_color.rgb += flash * vec3(1.0, 1.0, 1.3);
+    }
+
+    if (uClicked != 0 && uTime - uClickTime > 3.5)
         output_color += nebulaSum;
 }
